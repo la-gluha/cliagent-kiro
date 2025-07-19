@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.models.openai_provider import OpenAIProvider
 from src.models.local_model_provider import LocalModelProvider
+from src.models.mock_provider import MockModelProvider
 from src.models.data_models import ModelInfo, ModelType
 from src.exceptions import ModelError, ConfigurationError
 
@@ -198,15 +199,25 @@ class LocalModelDemo:
     
     def __init__(self):
         """Initialize local model demo."""
-        self.provider = LocalModelProvider(
-            model_name="demo-local-model",
-            mock_mode=True,
-            response_delay=0.2  # Faster for demo
-        )
+        self.provider = None
+        try:
+            # Try to initialize with Ollama first
+            self.provider = LocalModelProvider(
+                model_name="demo-local-model",
+                backend="ollama"
+            )
+        except (ModelError, ConfigurationError) as e:
+            print(f"Failed to initialize local model provider: {e}")
+            print("Note: This demo requires Ollama to be running on localhost:11434")
+            print("Install Ollama from https://ollama.ai/ and run 'ollama serve' to enable local model demos")
     
     def demo_mock_responses(self):
         """Demonstrate local model mock responses."""
-        print("=== Local Model Demo (Mock Mode) ===")
+        if not self.provider:
+            print("Skipping Local Model demo - provider not available")
+            return
+            
+        print("=== Local Model Demo ===")
         
         test_prompts = [
             "Hello, how are you?",
@@ -227,6 +238,10 @@ class LocalModelDemo:
     
     async def demo_streaming_mock(self, question: str = "Explain artificial intelligence"):
         """Demonstrate local model streaming."""
+        if not self.provider:
+            print("Skipping Local Model streaming demo - provider not available")
+            return
+            
         print("=== Local Model Demo (Streaming) ===")
         print(f"Question: {question}")
         print("Response: ", end='', flush=True)
@@ -242,33 +257,137 @@ class LocalModelDemo:
     
     def demo_model_management(self):
         """Demonstrate model management features."""
+        if not self.provider:
+            print("Skipping Local Model management demo - provider not available")
+            return
+            
         print("=== Local Model Management Demo ===")
         
-        # Show model status
-        status = self.provider.get_model_status()
-        print(f"Model Status: {status}")
-        
-        # Show memory usage
-        memory = self.provider.get_memory_usage()
-        print(f"Memory Usage: {memory}")
-        
-        # Show parameters
-        params = self.provider.get_parameters()
-        print(f"Parameters: {params}")
-        
-        # Test parameter changes
-        print("\nChanging parameters...")
-        self.provider.set_parameters({"temperature": 0.9, "max_tokens": 500})
-        new_params = self.provider.get_parameters()
-        print(f"New Parameters: {new_params}")
-        
-        # Reset parameters
-        print("\nResetting parameters...")
-        self.provider.reset_parameters()
-        reset_params = self.provider.get_parameters()
-        print(f"Reset Parameters: {reset_params}")
+        try:
+            # Show model status
+            status = self.provider.get_model_status()
+            print(f"Model Status: {status}")
+            
+            # Show memory usage
+            memory = self.provider.get_memory_usage()
+            print(f"Memory Usage: {memory}")
+            
+            # Show parameters
+            params = self.provider.get_parameters()
+            print(f"Parameters: {params}")
+            
+            # Test parameter changes
+            print("\nChanging parameters...")
+            self.provider.set_parameters({"temperature": 0.9, "max_tokens": 500})
+            new_params = self.provider.get_parameters()
+            print(f"New Parameters: {new_params}")
+            
+            # Reset parameters
+            print("\nResetting parameters...")
+            self.provider.reset_parameters()
+            reset_params = self.provider.get_parameters()
+            print(f"Reset Parameters: {reset_params}")
+            
+        except (ModelError, AttributeError) as e:
+            print(f"Error in model management demo: {e}")
         
         print("\n=== Local Model Management Demo Complete ===\n")
+
+
+class MockDemo:
+    """Demo for mock AI provider (works without external dependencies)."""
+    
+    def __init__(self):
+        """Initialize mock demo."""
+        self.provider = MockModelProvider(
+            model_name="demo-mock-ai",
+            response_delay=0.3
+        )
+    
+    def demo_mock_responses(self):
+        """Demonstrate mock AI responses."""
+        print("=== Mock AI Demo ===")
+        print("This demo works without any API keys or external services!")
+        
+        test_prompts = [
+            "Hello, how are you?",
+            "What is machine learning?",
+            "Explain how to write Python code",
+            "Think step by step: How do you make coffee?",
+            "What is the meaning of life?"
+        ]
+        
+        for prompt in test_prompts:
+            print(f"\nPrompt: {prompt}")
+            try:
+                response = self.provider.generate_response(prompt)
+                print(f"Response: {response}")
+            except ModelError as e:
+                print(f"Error: {e}")
+        
+        print("\n=== Mock AI Demo Complete ===\n")
+    
+    async def demo_streaming_mock(self, question: str = "Explain artificial intelligence"):
+        """Demonstrate mock streaming responses."""
+        print("=== Mock AI Demo (Streaming) ===")
+        print(f"Question: {question}")
+        print("Response: ", end='', flush=True)
+        
+        try:
+            async for chunk in self.provider.generate_response_stream(question):
+                print(chunk, end='', flush=True)
+            
+            print("\n\n=== Mock AI Streaming Demo Complete ===\n")
+            
+        except (ModelError, NotImplementedError) as e:
+            print(f"Error with mock streaming: {e}")
+    
+    def demo_reasoning(self, problem: str = "How can we solve climate change?"):
+        """Demonstrate mock reasoning capabilities."""
+        print("=== Mock AI Demo (Reasoning) ===")
+        print(f"Problem: {problem}")
+        
+        try:
+            reasoning = self.provider.generate_reasoning(problem)
+            print(f"Reasoning: {reasoning}")
+            print("\n=== Mock AI Reasoning Demo Complete ===\n")
+            
+        except ModelError as e:
+            print(f"Error with mock reasoning: {e}")
+    
+    def demo_model_management(self):
+        """Demonstrate mock model management features."""
+        print("=== Mock AI Model Management Demo ===")
+        
+        try:
+            # Show model status
+            status = self.provider.get_model_status()
+            print(f"Model Status: {status}")
+            
+            # Show memory usage
+            memory = self.provider.get_memory_usage()
+            print(f"Memory Usage: {memory}")
+            
+            # Show parameters
+            params = self.provider.get_parameters()
+            print(f"Parameters: {params}")
+            
+            # Test parameter changes
+            print("\nChanging parameters...")
+            self.provider.set_parameters({"temperature": 0.9, "response_delay": 0.1})
+            new_params = self.provider.get_parameters()
+            print(f"New Parameters: {new_params}")
+            
+            # Reset parameters
+            print("\nResetting parameters...")
+            self.provider.reset_parameters()
+            reset_params = self.provider.get_parameters()
+            print(f"Reset Parameters: {reset_params}")
+            
+        except (ModelError, AttributeError) as e:
+            print(f"Error in mock model management demo: {e}")
+        
+        print("\n=== Mock AI Model Management Demo Complete ===\n")
 
 
 class ComparisonDemo:
@@ -277,6 +396,12 @@ class ComparisonDemo:
     def __init__(self):
         """Initialize comparison demo."""
         self.providers = {}
+        
+        # Always include mock provider for demonstration
+        self.providers['mock'] = MockModelProvider(
+            model_name="mock-ai-comparison",
+            response_delay=0.2
+        )
         
         # Initialize available providers
         try:
@@ -287,11 +412,13 @@ class ComparisonDemo:
         except (ConfigurationError, ModelError):
             print("OpenAI provider not available for comparison")
         
-        self.providers['local'] = LocalModelProvider(
-            model_name="comparison-local-model",
-            mock_mode=True,
-            response_delay=0.1
-        )
+        try:
+            self.providers['local'] = LocalModelProvider(
+                model_name="comparison-local-model",
+                backend="ollama"
+            )
+        except (ConfigurationError, ModelError):
+            print("Local provider not available for comparison")
     
     def demo_provider_comparison(self, question: str = "What is the meaning of life?"):
         """Compare responses from different providers."""
